@@ -105,6 +105,20 @@ remitwise-frontend/
 - **Insurance**: Integrate with `insurance` contract for policy management
 - **Family Wallets**: Connect to `family_wallet` contract for member management
 
+## Backend / API
+
+### Overview
+
+This Next.js application uses API routes to handle backend functionality. API routes are located in the `app/api/` directory and follow Next.js 14 App Router conventions.
+
+**Key API Routes:**
+- `/api/auth/*` - Authentication endpoints (wallet connect, nonce generation, signature verification)
+- `/api/transactions/*` - Transaction history and status
+- `/api/contracts/*` - Soroban smart contract interactions
+- `/api/health` - Health check endpoint
+
+All API routes are serverless functions deployed alongside the frontend.
+
 ## Design Notes
 
 - All forms are currently disabled (placeholders)
