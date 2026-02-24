@@ -85,7 +85,7 @@
   - **Property 2: Validation consistency with normal transfers**
   - **Validates: Requirements 1.2**
 
-- [ ] 8. Implement emergency transfer API endpoint
+- [x] 8. Implement emergency transfer API endpoint
   - Create POST /api/remittance/emergency/build route handler
   - Add authentication middleware to protect endpoint
   - Integrate request validation middleware
