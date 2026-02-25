@@ -1,14 +1,8 @@
-import { clearSessionCookie } from '@/lib/session';
+import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 
-export const dynamic = 'force-dynamic';
-
-export async function POST() {
-  const cookieHeader = clearSessionCookie();
-  return new Response(JSON.stringify({ ok: true, message: 'Logged out successfully' }), {
-    status: 200,
-    headers: {
-      'Content-Type': 'application/json',
-      'Set-Cookie': cookieHeader,
-    },
-  });
+export async function POST(request: NextRequest) {
+  const cookieStore = await cookies();
+  cookieStore.delete('session');
+  return NextResponse.json({ success: true });
 }
