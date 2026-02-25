@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getTranslator } from '../../../../lib/i18n'
 import crypto from 'crypto'
+import { verifySignature } from '@/lib/webhooks/verify'
 
 export async function POST(request: Request) {
   try {
@@ -25,17 +26,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: t('errors.missing_signature') }, { status: 401 })
     }
 
-    // 3. Verify Signature using HMAC SHA-256
-    const expectedSignature = crypto
-      .createHmac('sha256', secret)
-      .update(rawBody)
-      .digest('hex')
-
-    // Secure compare to prevent timing attacks
-    const isSignatureValid = crypto.timingSafeEqual(
-      Buffer.from(signature),
-      Buffer.from(expectedSignature)
-    )
+    // 3. Verify Signature using shared secret (HMAC SHA-256)
+    const isSignatureValid = verifySignature(rawBody, signature, secret, 'hmac-sha256')
 
     if (!isSignatureValid) {
       console.warn('[Webhook] Invalid webhook signature detected.')

@@ -1,23 +1,35 @@
-import { NextResponse } from 'next/server';
-import { cookies, headers } from 'next/headers';
-import { getTranslator } from '../../../lib/i18n';
+import { NextRequest, NextResponse } from 'next/server';
+import { withAuth, ApiError } from '@/lib/auth';
+import { getSplit } from '@/lib/contracts/remittance-split';
 
-export async function GET() {
-    const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get('session');
-
-    if (!sessionCookie || sessionCookie.value !== 'mock-session-cookie') {
-        const headersList = await headers();
-        const t = getTranslator(headersList.get('accept-language'));
-        return NextResponse.json({ error: t('errors.unauthorized') }, { status: 401 });
+async function getHandler(request: NextRequest, session: string) {
+  try {
+    const env = (process.env.STELLAR_NETWORK as 'testnet' | 'mainnet') || 'testnet';
+    const config = await getSplit(env);
+    
+    if (!config) {
+      throw new ApiError(404, 'Split configuration not found');
     }
-
+    
     return NextResponse.json({
-        allocations: {
-            dailySpending: 50,
-            savings: 30,
-            bills: 15,
-            insurance: 5
-        }
+      percentages: {
+        savings: config.savings_percent,
+        bills: config.bills_percent,
+        insurance: config.insurance_percent,
+        family: config.family_percent
+      }
     });
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    throw new ApiError(500, error instanceof Error ? error.message : 'Failed to fetch split config');
+  }
 }
+
+async function postHandler(request: NextRequest, session: string) {
+  const body = await request.json();
+  // TODO: Call Soroban remittance_split contract to update config
+  return NextResponse.json({ success: true });
+}
+
+export const GET = withAuth(getHandler);
+export const POST = withAuth(postHandler);
