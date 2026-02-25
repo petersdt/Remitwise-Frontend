@@ -253,6 +253,101 @@ ANCHOR_PLATFORM_API_KEY=
 
 See `.env.example` for a complete list of configuration options.
 
+### API Middleware Configuration
+
+The middleware (`middleware.ts`) applies CORS headers, security headers, and request validation to all `/api` routes.
+
+#### CORS Policy
+
+Cross-Origin Resource Sharing (CORS) is configured to allow requests from the frontend application:
+
+- **Allowed Origins**: Requests from `NEXT_PUBLIC_APP_URL` are allowed (or same-origin)
+- **Allowed Methods**: GET, POST, PUT, DELETE, PATCH, OPTIONS
+- **Allowed Headers**: Content-Type, Authorization, X-Requested-With
+- **Credentials**: Allowed for same-origin requests
+- **Preflight Handling**: OPTIONS requests return 204 No Content with appropriate CORS headers
+
+**Configuration:**
+
+Set `NEXT_PUBLIC_APP_URL` in `.env.local`:
+
+```bash
+# Frontend URL for CORS policy (e.g., http://localhost:3000)
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+```
+
+**Example: Testing CORS**
+
+```bash
+# Test CORS headers on a preflight request
+curl -i -X OPTIONS http://localhost:3000/api/health \
+  -H "Origin: http://localhost:3000" \
+  -H "Access-Control-Request-Method: POST"
+
+# Response includes:
+# Access-Control-Allow-Origin: http://localhost:3000
+# Access-Control-Allow-Methods: GET, POST, PUT, DELETE, PATCH, OPTIONS
+# Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With
+```
+
+#### Security Headers
+
+All API responses include the following security headers to protect against common vulnerabilities:
+
+| Header                   | Value           | Purpose                                        |
+| ------------------------ | --------------- | ---------------------------------------------- |
+| `X-Content-Type-Options` | `nosniff`       | Prevents MIME-type sniffing attacks            |
+| `X-Frame-Options`        | `DENY`          | Prevents clickjacking attacks                  |
+| `X-XSS-Protection`       | `1; mode=block` | Legacy XSS protection (modern browsers ignore) |
+| `Vary`                   | `Origin`        | Instructs caches to vary response by origin    |
+
+These headers are applied automatically to all `/api` responses and do not require configuration.
+
+#### Request Body Size Limit
+
+POST, PUT, and PATCH requests are validated for size to prevent oversized payloads:
+
+- **Default Limit**: 1MB (1,048,576 bytes)
+- **Validation**: Checks `Content-Length` header first, falls back to reading body if header missing
+- **Response**: 413 Payload Too Large with JSON error details if exceeded
+
+**Configuration:**
+
+```bash
+# Maximum request body size in bytes (default 1MB)
+API_MAX_BODY_SIZE=1048576
+```
+
+**Example: Testing Body Size Validation**
+
+```bash
+# Valid request (under 1MB)
+curl -i -X POST http://localhost:3000/api/test \
+  -H "Content-Type: application/json" \
+  -d '{"data":"test"}'
+# Response: 200 OK or appropriate handler response
+
+# Oversized request (over 1MB)
+curl -i -X POST http://localhost:3000/api/test \
+  -H "Content-Type: application/json" \
+  -d "$(dd if=/dev/zero bs=1M count=2 2>/dev/null | base64)"
+# Response: 413 Payload Too Large
+# {"error": "Payload Too Large", "message": "Request body exceeds maximum size of 1048576 bytes."}
+```
+
+#### Middleware Flow
+
+The middleware processes requests in the following order:
+
+1. **Whitelist Checks** - Health check and Playwright test requests bypass all middleware
+2. **CORS & Security Headers** - Applied to all responses before processing
+3. **Preflight Handling** - OPTIONS requests return 204 No Content
+4. **Body Size Validation** - POST/PUT/PATCH requests checked against size limit
+5. **Rate Limiting** - Applied after headers/validation (does not block preflight)
+6. **Response** - Headers added to response, request proceeds to handler
+
+This order ensures OPTIONS preflight requests complete successfully while maintaining security and rate limiting enforcement.
+
 ### Running the Backend
 
 The backend API routes run automatically with the Next.js development server:
