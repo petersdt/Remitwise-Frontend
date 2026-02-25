@@ -1,64 +1,68 @@
-// Session management utilities
+// Session authentication utilities
 
-export interface Session {
-  address: string;
-  publicKey: string;
-  authenticated: boolean;
-}
+import { Session } from '@/lib/types/savings-goals';
+import { NextRequest } from 'next/server';
 
 /**
- * Extracts and validates session from request
+ * Extract session from request
  * For now, this is a simplified implementation that reads from headers
- * In production, this should use proper session management (JWT, cookies, etc.)
+ * In production, this would integrate with your actual auth system
  */
-export async function getSession(request: Request): Promise<Session | null> {
-  try {
-    // Check for authorization header
-    const authHeader = request.headers.get('authorization');
-    
-    if (!authHeader) {
-      return null;
+export function getSessionFromRequest(request: NextRequest): Session | null {
+  // Try to get public key from Authorization header
+  const authHeader = request.headers.get('authorization');
+  
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const publicKey = authHeader.substring(7);
+    if (publicKey && publicKey.length === 56 && publicKey.startsWith('G')) {
+      return { publicKey };
     }
-
-    // Extract token from "Bearer <token>" format
-    const token = authHeader.replace(/^Bearer\s+/i, '');
-    
-    if (!token) {
-      return null;
-    }
-
-    // For development: decode a simple base64-encoded JSON token
-    // In production, use proper JWT validation
-    try {
-      const decoded = JSON.parse(Buffer.from(token, 'base64').toString('utf-8'));
-      
-      if (!decoded.address || !decoded.publicKey) {
-        return null;
-      }
-
-      // Basic validation
-      if (typeof decoded.address !== 'string' || typeof decoded.publicKey !== 'string') {
-        return null;
-      }
-
-      return {
-        address: decoded.address,
-        publicKey: decoded.publicKey,
-        authenticated: true,
-      };
-    } catch {
-      return null;
-    }
-  } catch {
-    return null;
   }
+  
+  // Try to get from custom header
+  const publicKeyHeader = request.headers.get('x-stellar-public-key');
+  if (publicKeyHeader && publicKeyHeader.length === 56 && publicKeyHeader.startsWith('G')) {
+    return { publicKey: publicKeyHeader };
+  }
+  
+  // Try to get from cookie
+  const cookies = request.cookies;
+  const publicKeyCookie = cookies.get('stellar_public_key');
+  if (publicKeyCookie?.value && publicKeyCookie.value.length === 56 && publicKeyCookie.value.startsWith('G')) {
+    return { publicKey: publicKeyCookie.value };
+  }
+  
+  return null;
 }
 
 /**
- * Creates a simple session token for development
- * In production, use proper JWT signing
+ * Validate that a session exists and is valid
  */
-export function createSessionToken(address: string, publicKey: string): string {
-  const payload = { address, publicKey };
-  return Buffer.from(JSON.stringify(payload)).toString('base64');
+export function validateSession(session: Session | null): boolean {
+  if (!session) {
+    return false;
+  }
+  
+  if (!session.publicKey) {
+    return false;
+  }
+  
+  // Validate Stellar public key format
+  if (session.publicKey.length !== 56 || !session.publicKey.startsWith('G')) {
+    return false;
+  }
+  
+  return true;
+}
+
+/**
+ * Extract public key from session
+ * Throws error if session is invalid
+ */
+export function getPublicKeyFromSession(session: Session | null): string {
+  if (!validateSession(session)) {
+    throw new Error('Invalid or missing session');
+  }
+  
+  return session!.publicKey;
 }
