@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { randomBytes } from 'crypto';
 import { storeNonce } from '@/lib/auth/nonce-store';
 import { getTranslator } from '@/lib/i18n';
+import { NextRequest, NextResponse } from "next/server";
+import { storeNonce } from "@/lib/auth/nonce-store";
+import { randomBytes } from "crypto";
 
 // Force dynamic rendering for this route
 export const dynamic = 'force-dynamic';
@@ -39,6 +42,8 @@ export async function GET(request: NextRequest) {
 
         // Store nonce with 5 minute expiration
         storeNonce(address, nonce);
+  // Store nonce in cache for later verification
+  storeNonce(publicKey, nonce);
 
         return NextResponse.json({
             nonce,

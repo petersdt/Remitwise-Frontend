@@ -36,7 +36,7 @@ export function unauthorizedResponse() {
   });
 }
 
-import {  NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 
 type NextHandler = (req: NextRequest, address: string) => Promise<NextResponse>;
@@ -113,6 +113,13 @@ export function withAuth(
         status: 500,
         headers: { "Content-Type": "application/json" },
       });
+    if (!session?.address) {
+      return NextResponse.json(
+        { error: 'Unauthorized', message: 'Not authenticated' },
+        { status: 401 }
+      );
     }
+
+    return handler(req, session.address);
   };
 }
